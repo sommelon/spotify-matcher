@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    <h1>{% block title %}Invitation{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+    <article class="invitation">
+        <header>
+        <div>
+            <h1>
+                <a href="{{ invitation.profile_url }}" target="_blank">{{ invitation.name }}</a> invited you match their songs with yours.
+            </h1>
+        </div>
+        </header>
+    </article>
+    {% if invitation.author_id != g.user.id %}
+    <form method="post" action="{{ url_for('invitation.accept', invitation_id=invitation.id) }}">
+        <input type="submit" value="Accept">
+    </form>
+    {% endif %}
+{% endblock %}
