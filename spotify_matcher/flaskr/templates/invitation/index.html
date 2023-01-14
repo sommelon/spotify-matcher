@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Invitations{% endblock %}</h1>
+  <form method="post" action="/create">
+    <input type="submit" value="New">
+  </form>
+{% endblock %}
+
+{% block content %}
+  {% with messages = get_flashed_messages(category_filter=["error"]) %}
+  {% for invitation in invitations %}
+  {% if messages[0] == invitation.uuid %}
+  {% endif %}
+
+    <article class="invitation {% if messages[0] == invitation.uuid %}new-invitation{% endif %}">
+      <header>
+        <div>
+          <h1>{{ invitation['uuid'] }}</h1>
+          <div class="about">created at {{ invitation['created_at'] }}</div>
+        </div>
+        {# <a class="action" href="{{ url_for('invitation.delete', id=invitation['id']) }}">Delete</a> #}
+      </header>
+    </article>
+    {% if not loop.last %}
+      <hr>
+    {% endif %}
+  {% endfor %}
+  {% endwith %}
+{% endblock %}
