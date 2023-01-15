@@ -79,12 +79,12 @@ def retrieve_songs(access_token, user):
     ]
 
     playlists = sp.current_user_playlists()
-    playlists = collect_all_items(sp, playlists)
     playlists = [
         playlist
-        for playlist in playlists
+        for playlist in collect_all_items(sp, playlists)
         if playlist["owner"]["id"] == user["spotify_id"]
     ]
+    print("Retrieved", len(playlists), "owner's playlists")
     playlist_songs = []
     for playlist in playlists:
         playlist_items = sp.playlist_items(
@@ -99,6 +99,7 @@ def retrieve_songs(access_token, user):
         playlist_songs.extend(songs)
 
     all_songs = liked_songs + playlist_songs
+    print("Retrieved", len(all_songs), "songs")
     existing_songs, new_songs = _filter_songs(all_songs)
     new_songs = {(s["name"], s["artists"], s["url"], s["hash"]) for s in new_songs}
     db = get_db()
@@ -109,6 +110,7 @@ def retrieve_songs(access_token, user):
             new_songs,
             fetch=True,
         )
+        print("Added", len(new_song_ids), "new songs")
 
     all_song_ids = tuple(id[0] for id in new_song_ids) + tuple(
         song["id"] for song in existing_songs

@@ -127,13 +127,15 @@ def accept(invitation_id):
 
         accepted_invitation = _get_accepted_invitation(invitation_id, g.user["id"])
 
+        if accepted_invitation:
+            flash("Invitation already accepted.")
+            return redirect(
+                url_for("invitation.invitation", invitation_id=invitation_id)
+            )
+
         from spotify_matcher.flaskr.tasks import retrieve_songs
 
         retrieve_songs.delay(session["spotify_access_token"], g.user)
-
-        if accepted_invitation:
-            flash("Invitation already accepted.")
-            return redirect(url_for("invitation.invitations"))
 
         cursor.execute(
             "INSERT INTO accepted_invitations (invitation_id, user_id) VALUES (%s, %s)",
@@ -141,7 +143,7 @@ def accept(invitation_id):
         )
         db.commit()
 
-    return redirect(url_for("invitation.invitations"))
+    return redirect(url_for("invitation.invitation", invitation_id=invitation_id))
 
 
 def _get_accepted_invitation(invitation_id, user_id):
