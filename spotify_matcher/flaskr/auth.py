@@ -1,16 +1,9 @@
 import functools
+
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from flask import Blueprint, g, redirect, render_template, request, session, url_for
 from spotipy.cache_handler import FlaskSessionCacheHandler
-from flask import (
-    Blueprint,
-    g,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
+from spotipy.oauth2 import SpotifyOAuth
 
 from spotify_matcher.flaskr.db import get_db
 
@@ -49,6 +42,7 @@ def callback():
 
     session.clear()
     session["user_id"] = user["id"]
+    session["spotify_access_token"] = access_token
     if session.get("accepted_invitation"):
         redirect(url_for("invitation.accept", invitation_id=user["id"]))
     return redirect(url_for("invitation.invitations"))

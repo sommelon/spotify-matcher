@@ -1,5 +1,20 @@
 import os
+
+from celery import Celery
 from flask import Flask
+
+
+def make_celery(app: Flask):
+    celery = Celery(app.import_name)
+    celery.conf.update(app.config["CELERY_CONFIG"])
+
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery
 
 
 def create_app(test_config=None):
@@ -8,6 +23,10 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY="dev",
         DATABASE=os.path.join(app.instance_path, "flaskr.sqlite"),
+        CELERY_CONFIG={
+            "broker_url": "redis://localhost:6379/0",
+            "result_backend": "redis://localhost:6379/0",
+        },
     )
 
     if test_config is None:
@@ -35,6 +54,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(invitation.bp)
 
-    app.add_url_rule("/", endpoint="index")
+    app.add_url_rule("/", endpoint="invitation.invitations")
 
     return app
+
+
+app = create_app()
+celery = make_celery(app)

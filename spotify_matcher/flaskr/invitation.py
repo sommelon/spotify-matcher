@@ -1,16 +1,18 @@
+from uuid import uuid4
+
 from flask import (
     Blueprint,
+    abort,
+    flash,
     g,
     redirect,
     render_template,
-    url_for,
-    flash,
     session,
-    abort,
+    url_for,
 )
+
 from spotify_matcher.flaskr.auth import login_required
 from spotify_matcher.flaskr.db import get_db
-from uuid import uuid4
 
 bp = Blueprint("invitation", __name__, url_prefix="/invitations")
 
@@ -77,7 +79,10 @@ def accept(invitation_id):
         flash("You can't accept your own invitation.")
         return abort(400)
 
-    accepted_invitation = _get_accepted_invitation(invitation_id, g.user["id"])
+    accepted_invitation = _get_accepted_invitation(invitation_id, g.user)
+    from spotify_matcher.flaskr.tasks import retrieve_songs
+
+    retrieve_songs.delay(session["spotify_access_token"], g.user["spotify_id"])
     if accepted_invitation:
         flash("Invitation already accepted.")
         return redirect(url_for("invitation.invitations"))
