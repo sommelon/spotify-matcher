@@ -12,6 +12,8 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 @bp.route("/login", methods=("GET", "POST"))
 def login():
+    if g.user:
+        return redirect(url_for("invitation.invitations"))
     oauth = _get_oauth()
     return render_template("auth/login.html", authorize_url=oauth.get_authorize_url())
 
@@ -27,24 +29,30 @@ def callback():
     user = _get_user(spotify_user["id"])
 
     if user is None:
-        db.execute(
-            "INSERT INTO user (spotify_id, name, profile_url, photo_url) VALUES (?, ?, ?, ?)",
-            (
-                spotify_user["id"],
-                spotify_user["display_name"],
-                spotify_user["external_urls"]["spotify"],
-                spotify_user["images"][0]["url"] if spotify_user["images"] else None,
-            ),
-        )
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO users (spotify_id, name, profile_url, photo_url) VALUES (%s, %s, %s, %s)",
+                (
+                    spotify_user["id"],
+                    spotify_user["display_name"],
+                    spotify_user["external_urls"]["spotify"],
+                    spotify_user["images"][0]["url"]
+                    if spotify_user["images"]
+                    else None,
+                ),
+            )
         db.commit()
         user = _get_user(spotify_user["id"])
     g.user = user
 
+    accepted_invitation = session.get("accepted_invitation")
     session.clear()
     session["user_id"] = user["id"]
     session["spotify_access_token"] = access_token
-    if session.get("accepted_invitation"):
-        redirect(url_for("invitation.accept", invitation_id=user["id"]))
+    if accepted_invitation:
+        return redirect(
+            url_for("invitation.invitation", invitation_id=accepted_invitation)
+        )
     return redirect(url_for("invitation.invitations"))
 
 
@@ -55,10 +63,10 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        user = (
-            get_db().execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
-        )
-        g.user = dict(user) if user else None
+        with get_db().cursor() as cursor:
+            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+        g.user = user
 
 
 @bp.route("/logout")
@@ -88,8 +96,7 @@ def _get_oauth():
 
 
 def _get_user(spotify_id):
-    db = get_db()
-    user = db.execute(
-        "SELECT * FROM user WHERE spotify_id = ?", (spotify_id,)
-    ).fetchone()
-    return dict(user) if user else None
+    with get_db().cursor() as cursor:
+        cursor.execute("SELECT * FROM users WHERE spotify_id = %s", (spotify_id,))
+        user = cursor.fetchone()
+    return user
