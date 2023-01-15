@@ -47,7 +47,43 @@ def invitation(invitation_id):
             (invitation_id,),
         )
         invitation = cursor.fetchone()
-    return render_template("invitation/detail.html", invitation=invitation)
+
+    accepted_invitations = _get_accepted_invitations(invitation_id)
+    matches = []
+    if accepted_invitations:
+        user_ids = [user["id"] for user in accepted_invitations]
+        with get_db().cursor() as cursor:
+            cursor.execute(
+                "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
+                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s",
+                (invitation["author_id"],),
+            )
+            song_ids = tuple(song["id"] for song in cursor.fetchall())
+
+            for id_ in user_ids:
+                if not song_ids:
+                    continue
+
+                cursor.execute(
+                    "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
+                    " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s",
+                    (id_, song_ids),
+                )
+                song_ids = tuple(song["id"] for song in cursor.fetchall())
+
+            if song_ids:
+                cursor.execute(
+                    "SELECT id, name, url FROM songs s WHERE id IN %s",
+                    (song_ids,),
+                )
+                matches = cursor.fetchall()
+
+    return render_template(
+        "invitation/detail.html",
+        invitation=invitation,
+        accepted_invitations=accepted_invitations,
+        matches=matches,
+    )
 
 
 @bp.route("/create", methods=("POST",))
@@ -63,6 +99,10 @@ def create():
         cursor.execute("SELECT * FROM invitations WHERE id = %s", (uuid,))
         invitation = cursor.fetchone()
     db.commit()
+
+    from spotify_matcher.flaskr.tasks import retrieve_songs
+
+    retrieve_songs.delay(session["spotify_access_token"], g.user)
 
     flash(invitation, "new_invitation")
     return redirect(url_for("invitation.invitations"))
@@ -86,9 +126,11 @@ def accept(invitation_id):
             return abort(400)
 
         accepted_invitation = _get_accepted_invitation(invitation_id, g.user["id"])
+
         from spotify_matcher.flaskr.tasks import retrieve_songs
 
         retrieve_songs.delay(session["spotify_access_token"], g.user)
+
         if accepted_invitation:
             flash("Invitation already accepted.")
             return redirect(url_for("invitation.invitations"))
@@ -115,7 +157,7 @@ def _get_accepted_invitation(invitation_id, user_id):
 def _get_accepted_invitations(invitation_id):
     with get_db().cursor() as cursor:
         cursor.execute(
-            "SELECT u.name, u.profile_url, u.photo_url FROM accepted_invitations i"
+            "SELECT u.id, u.name, u.profile_url, u.photo_url FROM accepted_invitations i"
             " JOIN users u ON u.id = i.user_id"
             " WHERE invitation_id = %s",
             (invitation_id,),

@@ -35,6 +35,7 @@ CREATE TABLE songs (
   name TEXT NOT NULL,
   artists TEXT NOT NULL,
   url TEXT NOT NULL,
+  hash TEXT NOT NULL
 );
 
 

@@ -13,7 +13,13 @@ def normalize_song_name(song_name):
         r"\([^\)]*LIVE[^\)]*\)", "", song_name, flags=re.IGNORECASE
     ).strip()
     normalized_name = re.sub(
-        r"-\w* Live( Version)?$", "", normalized_name, flags=re.IGNORECASE
+        r"- ?\w* Live( Version)?$", "", normalized_name, flags=re.IGNORECASE
+    ).strip()
+    normalized_name = re.sub(
+        r"\(\w* (Remix|Remastere?d?)\)$", "", normalized_name, flags=re.IGNORECASE
+    ).strip()
+    normalized_name = re.sub(
+        r" ?\w* (Remix|Remastere?d?)$", "", normalized_name, flags=re.IGNORECASE
     ).strip()
     return normalized_name
 
@@ -25,6 +31,7 @@ def normalize_song(song):
         "name": normalized_name,
         "artists": artist_ids,
         "url": song["external_urls"]["spotify"],
+        "hash": f"{song['artists'][0]['id']}-{normalized_name}",
     }
 
 
@@ -40,8 +47,8 @@ def collect_all_items(sp, results):
 
 def _filter_songs(songs: list):
     with get_db().cursor() as cursor:
-        song_urls = tuple([song["url"] for song in songs])
-        cursor.execute("SELECT id, url FROM songs WHERE url IN %s", (song_urls,))
+        song_hashes = tuple([song["hash"] for song in songs])
+        cursor.execute("SELECT id, hash FROM songs WHERE hash IN %s", (song_hashes,))
         existing_songs_db = cursor.fetchall()
 
     new_songs = []
@@ -51,7 +58,7 @@ def _filter_songs(songs: list):
             (
                 existing_song
                 for existing_song in existing_songs_db
-                if song["url"] == existing_song["url"]
+                if song["hash"] == existing_song["hash"]
             ),
             None,
         )
@@ -67,7 +74,9 @@ def _filter_songs(songs: list):
 def retrieve_songs(access_token, user):
     sp = Spotify(auth=access_token)
     liked_songs = sp.current_user_saved_tracks()
-    liked_songs = [normalize_song(song) for song in collect_all_items(sp, liked_songs)]
+    liked_songs = [
+        normalize_song(song["track"]) for song in collect_all_items(sp, liked_songs)
+    ]
 
     playlists = sp.current_user_playlists()
     playlists = collect_all_items(sp, playlists)
@@ -91,23 +100,20 @@ def retrieve_songs(access_token, user):
 
     all_songs = liked_songs + playlist_songs
     existing_songs, new_songs = _filter_songs(all_songs)
-    new_songs = [(s["name"], s["artists"], s["url"]) for s in new_songs]
+    new_songs = {(s["name"], s["artists"], s["url"], s["hash"]) for s in new_songs}
     db = get_db()
     with db.cursor(cursor_factory=_cursor) as cursor:
         new_song_ids = execute_values(
             cursor,
-            "INSERT INTO songs (name, artists, url) VALUES %s RETURNING id",
+            "INSERT INTO songs (name, artists, url, hash) VALUES %s RETURNING id",
             new_songs,
             fetch=True,
         )
 
     all_song_ids = tuple(id[0] for id in new_song_ids) + tuple(
-        song["id"] for song in existing_songs if "id" in song
+        song["id"] for song in existing_songs
     )
     with db.cursor() as cursor:
-        cursor.execute(
-            "SELECT * FROM user_songs WHERE user_id = %s AND song_id = %s",
-        )
         execute_values(
             cursor,
             "INSERT INTO user_songs (user_id, song_id, source) VALUES %s ON CONFLICT DO NOTHING",
@@ -116,3 +122,10 @@ def retrieve_songs(access_token, user):
 
     db.commit()
     return songs
+
+
+@celery.task
+def match_songs():
+    db = get_db()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT ")
