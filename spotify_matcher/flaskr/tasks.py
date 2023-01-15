@@ -1,55 +1,118 @@
 import re
 
+from psycopg2.extensions import cursor as _cursor
+from psycopg2.extras import execute_values
 from spotipy import Spotify
 
 from spotify_matcher.flaskr import celery
 from spotify_matcher.flaskr.db import get_db
 
 
+def normalize_song_name(song_name):
+    normalized_name = re.sub(
+        r"\([^\)]*LIVE[^\)]*\)", "", song_name, flags=re.IGNORECASE
+    ).strip()
+    normalized_name = re.sub(
+        r"-\w* Live( Version)?$", "", normalized_name, flags=re.IGNORECASE
+    ).strip()
+    return normalized_name
+
+
 def normalize_song(song):
-    artist_ids = [artist["id"] for artist in song["artists"]]
-    artists = ",".join(artist_ids)
-    duration = song["duration_ms"] // 1000  # in seconds
-    normalized_name = re.sub(r"\([^\)]+\)", "", song["name"]).strip()
+    artist_ids = ",".join([artist["id"] for artist in song["artists"]])
+    normalized_name = normalize_song_name(song["name"])
     return {
-        "name": song["name"],
-        "artists": artists,
-        "duration": duration,
-        "url": song["external_link"],
-        "hash": normalized_name + "-" + artist_ids + duration,
+        "name": normalized_name,
+        "artists": artist_ids,
+        "url": song["external_urls"]["spotify"],
     }
 
 
-def get_all_items(sp, results):
-    items = results["items"]
+def collect_all_items(sp, results):
+    for item in results["items"]:
+        yield item
+
     while results["next"]:
         results = sp.next(results)
-        items.extend(results["items"])
-    return items
+        for item in results["items"]:
+            yield item
+
+
+def _filter_songs(songs: list):
+    with get_db().cursor() as cursor:
+        song_urls = tuple([song["url"] for song in songs])
+        cursor.execute("SELECT id, url FROM songs WHERE url IN %s", (song_urls,))
+        existing_songs_db = cursor.fetchall()
+
+    new_songs = []
+    existing_songs = []
+    for song in songs:
+        existing_song = next(
+            (
+                existing_song
+                for existing_song in existing_songs_db
+                if song["url"] == existing_song["url"]
+            ),
+            None,
+        )
+        if existing_song:
+            song["id"] = existing_song["id"]
+            existing_songs.append(song)
+        else:
+            new_songs.append(song)
+    return existing_songs, new_songs
 
 
 @celery.task
 def retrieve_songs(access_token, user):
     sp = Spotify(auth=access_token)
-    liked_songs = sp.current_user_saved_tracks()["items"]
-    playlists = sp.current_user_playlists(limit=50)
-    playlists = get_all_items(playlists)
+    liked_songs = sp.current_user_saved_tracks()
+    liked_songs = [normalize_song(song) for song in collect_all_items(sp, liked_songs)]
+
+    playlists = sp.current_user_playlists()
+    playlists = collect_all_items(sp, playlists)
     playlists = [
         playlist
-        for playlist in playlists["items"]
+        for playlist in playlists
         if playlist["owner"]["id"] == user["spotify_id"]
     ]
     playlist_songs = []
     for playlist in playlists:
-        playlist_songs = [
-            sp.playlist_items(
-                playlist["id"],
-                limit=100,
-                additional_types=("track",),
-            )
+        playlist_items = sp.playlist_items(
+            playlist["id"],
+            limit=100,
+            additional_types=("track",),
+        )
+        songs = [
+            normalize_song(song["track"])
+            for song in collect_all_items(sp, playlist_items)
         ]
-        playlist_songs.extend(get_all_items(playlist_songs))
-    songs = [normalize_song(song) for song in liked_songs + playlist_songs]
+        playlist_songs.extend(songs)
+
+    all_songs = liked_songs + playlist_songs
+    existing_songs, new_songs = _filter_songs(all_songs)
+    new_songs = [(s["name"], s["artists"], s["url"]) for s in new_songs]
     db = get_db()
+    with db.cursor(cursor_factory=_cursor) as cursor:
+        new_song_ids = execute_values(
+            cursor,
+            "INSERT INTO songs (name, artists, url) VALUES %s RETURNING id",
+            new_songs,
+            fetch=True,
+        )
+
+    all_song_ids = tuple(id[0] for id in new_song_ids) + tuple(
+        song["id"] for song in existing_songs if "id" in song
+    )
+    with db.cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM user_songs WHERE user_id = %s AND song_id = %s",
+        )
+        execute_values(
+            cursor,
+            "INSERT INTO user_songs (user_id, song_id, source) VALUES %s ON CONFLICT DO NOTHING",
+            [(user["id"], id, "playlist") for id in all_song_ids],
+        )
+
     db.commit()
     return songs

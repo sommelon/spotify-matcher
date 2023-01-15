@@ -34,16 +34,15 @@ CREATE TABLE songs (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   artists TEXT NOT NULL,
-  duration INTEGER NOT NULL,
   url TEXT NOT NULL,
-  hash TEXT NOT NULL
 );
 
 
 CREATE TABLE user_songs (
   user_id INTEGER NOT NULL,
   song_id INTEGER NOT NULL,
-  source TEXT,
+  source TEXT,  -- only 'playlist' for now, later may be 'history' and the uniqueness constraint has to be updated, or update the source from history to playlist when the user adds the song to their playlist
   FOREIGN KEY (user_id) REFERENCES users (id),
-  FOREIGN KEY (song_id) REFERENCES songs (id)
+  FOREIGN KEY (song_id) REFERENCES songs (id),
+  UNIQUE (user_id, song_id)
 );

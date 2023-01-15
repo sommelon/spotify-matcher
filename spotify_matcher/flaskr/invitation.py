@@ -88,7 +88,7 @@ def accept(invitation_id):
         accepted_invitation = _get_accepted_invitation(invitation_id, g.user["id"])
         from spotify_matcher.flaskr.tasks import retrieve_songs
 
-        retrieve_songs.delay(session["spotify_access_token"], g.user["spotify_id"])
+        retrieve_songs.delay(session["spotify_access_token"], g.user)
         if accepted_invitation:
             flash("Invitation already accepted.")
             return redirect(url_for("invitation.invitations"))
