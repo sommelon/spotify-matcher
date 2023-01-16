@@ -13,9 +13,17 @@ Find a match.
 ## Prerequisites
 1. [Install Redis](https://redis.io/docs/getting-started/installation/) and start a new instance.
 
-2. Create a `.env` file and copy the contents of `env.example`. Update the values.
+2. Register a Spotify developer account at [https://developer.spotify.com/dashboard/](https://developer.spotify.com/dashboard/).
 
-Install dependencies by running `poetry install`.
+   Create an application to receive a client ID and a client secret.
+
+   Add callback URL to the app settings.
+
+   Add users to your app.
+
+3. Create a `.env` file and copy the contents of `env.example`. Update the values.
+
+4. Install dependencies by running `poetry install`.
 
 ## Start server
 `poetry run flask run`
