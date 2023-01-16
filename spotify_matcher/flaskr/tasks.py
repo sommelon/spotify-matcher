@@ -98,7 +98,17 @@ def retrieve_songs(access_token, user):
         ]
         playlist_songs.extend(songs)
 
-    all_songs = liked_songs + playlist_songs
+    top_tracks = sp.current_user_top_tracks()
+    top_tracks = [
+        normalize_song(song["track"]) for song in collect_all_items(sp, top_tracks)
+    ]
+
+    recently_played = sp.current_user_recently_played()
+    recently_played = [
+        normalize_song(song["track"]) for song in collect_all_items(sp, recently_played)
+    ]
+
+    all_songs = liked_songs + playlist_songs + top_tracks + recently_played
     print("Retrieved", len(all_songs), "songs")
     existing_songs, new_songs = _filter_songs(all_songs)
     new_songs = {(s["name"], s["artists"], s["url"], s["hash"]) for s in new_songs}

@@ -88,7 +88,7 @@ def login_required(view):
 
 def _get_oauth():
     oauth = SpotifyOAuth(
-        scope="user-library-read",
+        scope="user-library-read,playlist-read-private,user-top-read,user-read-recently-played",
         cache_handler=FlaskSessionCacheHandler(session),
         open_browser=False,
     )
