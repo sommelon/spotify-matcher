@@ -99,9 +99,7 @@ def retrieve_songs(access_token, user):
         playlist_songs.extend(songs)
 
     top_tracks = sp.current_user_top_tracks()
-    top_tracks = [
-        normalize_song(song["track"]) for song in collect_all_items(sp, top_tracks)
-    ]
+    top_tracks = [normalize_song(song) for song in collect_all_items(sp, top_tracks)]
 
     recently_played = sp.current_user_recently_played()
     recently_played = [
