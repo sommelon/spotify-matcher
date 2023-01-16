@@ -1,6 +1,7 @@
 import os
 
 from celery import Celery
+from dotenv import get_key
 from flask import Flask
 
 
@@ -19,7 +20,7 @@ def make_celery(app: Flask):
 
 def create_app(test_config=None):
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__, instance_relative_config=True, subdomain_matching=True)
     app.config.from_mapping(
         SECRET_KEY="dev",
         DATABASE=os.path.join(app.instance_path, "flaskr.sqlite"),
@@ -27,6 +28,7 @@ def create_app(test_config=None):
             "broker_url": "redis://localhost:6379/0",
             "result_backend": "redis://localhost:6379/0",
         },
+        SERVER_NAME=get_key(".env", "SERVER_NAME"),
     )
 
     if test_config is None:
