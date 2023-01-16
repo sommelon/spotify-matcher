@@ -137,7 +137,19 @@ def retrieve_songs(access_token, user):
 
 
 @celery.task
-def match_songs():
-    db = get_db()
-    with db.cursor() as cursor:
-        cursor.execute("SELECT ")
+def save_matched_songs(access_token, user, matches, matched_users):
+    sp = Spotify(auth=access_token)
+    playlist = sp.user_playlist_create(
+        user["spotify_id"],
+        "Song matches: " + ",".join(matched_users),
+        public=False,
+        description="Songs matched with " + ", ".join(matched_users),
+    )
+
+    max_simultaneous_songs = 50
+    songs_in_chunks = [
+        matches[x : x + max_simultaneous_songs]  # noqa
+        for x in range(0, len(matches), max_simultaneous_songs)
+    ]
+    for chunk in songs_in_chunks:
+        sp.playlist_add_items(playlist["id"], [song["url"] for song in chunk])

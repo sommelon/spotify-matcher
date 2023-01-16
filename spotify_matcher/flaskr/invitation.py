@@ -10,6 +10,7 @@ from flask import (
     session,
     url_for,
 )
+from spotipy import Spotify, SpotifyException
 
 from spotify_matcher.flaskr.auth import login_required
 from spotify_matcher.flaskr.db import get_db
@@ -49,35 +50,99 @@ def invitation(invitation_id):
         invitation = cursor.fetchone()
 
     accepted_invitations = _get_accepted_invitations(invitation_id)
-    matches = []
-    if accepted_invitations:
-        user_ids = [user["id"] for user in accepted_invitations]
-        with get_db().cursor() as cursor:
+    matches = _get_matches(invitation, accepted_invitations)
+
+    return render_template(
+        "invitation/detail.html",
+        invitation=invitation,
+        accepted_invitations=accepted_invitations,
+        matches=matches,
+    )
+
+
+@bp.route("/accepted")
+@login_required
+def accepted_invitations():
+    with get_db().cursor() as cursor:
+        cursor.execute(
+            "SELECT i.id, i.created_at"
+            " FROM invitations i"
+            " JOIN accepted_invitations ai ON ai.invitation_id = i.id AND ai.user_id = %s"
+            " ORDER BY created_at DESC",
+            (g.user["id"],),
+        )
+        invitations = cursor.fetchall()
+    return render_template(
+        "invitation/accepted.html",
+        invitations=invitations,
+        get_accepted_invitations=_get_accepted_invitations,
+    )
+
+
+def _get_matches(invitation, accepted_invitations):
+    if not accepted_invitations:
+        return []
+
+    user_ids = [user["id"] for user in accepted_invitations]
+    with get_db().cursor() as cursor:
+        cursor.execute(
+            "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
+            " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s",
+            (invitation["author_id"],),
+        )
+        song_ids = tuple(song["id"] for song in cursor.fetchall())
+
+        for id_ in user_ids:
+            if not song_ids:
+                continue
+
             cursor.execute(
                 "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
-                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s",
-                (invitation["author_id"],),
+                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s",
+                (id_, song_ids),
             )
             song_ids = tuple(song["id"] for song in cursor.fetchall())
 
-            for id_ in user_ids:
-                if not song_ids:
-                    continue
+        if song_ids:
+            cursor.execute(
+                "SELECT id, name, url FROM songs s WHERE id IN %s",
+                (song_ids,),
+            )
+            matches = cursor.fetchall()
+    return matches
 
-                cursor.execute(
-                    "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
-                    " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s",
-                    (id_, song_ids),
-                )
-                song_ids = tuple(song["id"] for song in cursor.fetchall())
 
-            if song_ids:
-                cursor.execute(
-                    "SELECT id, name, url FROM songs s WHERE id IN %s",
-                    (song_ids,),
-                )
-                matches = cursor.fetchall()
+@bp.route("/<invitation_id>", methods=("POST",))
+def save_matches(invitation_id):
+    with get_db().cursor() as cursor:
+        cursor.execute(
+            "SELECT i.id, i.author_id, u.name, u.photo_url, u.profile_url"
+            " FROM users u JOIN invitations i ON i.author_id = u.id"
+            " WHERE i.id = %s"
+            " ORDER BY created_at DESC",
+            (invitation_id,),
+        )
+        invitation = cursor.fetchone()
 
+    accepted_invitations = _get_accepted_invitations(invitation_id)
+    matches = _get_matches(invitation, accepted_invitations)
+
+    from spotify_matcher.flaskr.tasks import save_matched_songs
+
+    matched_users = [g.user["name"]] + [
+        invitation["name"] for invitation in accepted_invitations
+    ]
+
+    if not _try_connection(session["spotify_access_token"]):
+        return redirect(url_for("auth.login"))
+
+    save_matched_songs.delay(
+        session["spotify_access_token"], g.user, matches, matched_users
+    )
+
+    flash(
+        f"Songs will be added to a playlist named 'Song matches: {','.join(matched_users)}'"
+    )
     return render_template(
         "invitation/detail.html",
         invitation=invitation,
@@ -101,6 +166,9 @@ def create():
     db.commit()
 
     from spotify_matcher.flaskr.tasks import retrieve_songs
+
+    if not _try_connection(session["spotify_access_token"]):
+        return redirect(url_for("auth.login"))
 
     retrieve_songs.delay(session["spotify_access_token"], g.user)
 
@@ -135,6 +203,8 @@ def accept(invitation_id):
 
         from spotify_matcher.flaskr.tasks import retrieve_songs
 
+        if not _try_connection(session["spotify_access_token"]):
+            return redirect(url_for("auth.login"))
         retrieve_songs.delay(session["spotify_access_token"], g.user)
 
         cursor.execute(
@@ -166,3 +236,17 @@ def _get_accepted_invitations(invitation_id):
         )
         accepted_invitations = cursor.fetchall()
     return accepted_invitations
+
+
+def _try_connection(access_token):
+    sp = Spotify(auth=access_token)
+    try:
+        sp.me()
+        return True
+    except SpotifyException as e:
+        session.clear()
+        if "expired" in e.msg:
+            flash("Your Spotify token has expired, you need to log in again.")
+        else:
+            flash("Unexpected error: " + e.msg)
+        return False

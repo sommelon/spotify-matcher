@@ -72,7 +72,7 @@ def load_logged_in_user():
 @bp.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("invitation.invitations"))
+    return redirect(url_for("auth.login"))
 
 
 def login_required(view):
@@ -88,7 +88,7 @@ def login_required(view):
 
 def _get_oauth():
     oauth = SpotifyOAuth(
-        scope="user-library-read,playlist-read-private,user-top-read,user-read-recently-played",
+        scope="user-library-read,playlist-read-private,user-top-read,user-read-recently-played,playlist-modify-private",
         cache_handler=FlaskSessionCacheHandler(session),
         open_browser=False,
     )

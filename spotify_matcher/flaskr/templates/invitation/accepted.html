@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Accepted invitations{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  {% with messages = get_flashed_messages(category_filter=["error"]) %}
+  {% for invitation in invitations %}
+  {% if messages[0] == invitation.id %}
+  {% endif %}
+
+    <article class="invitation">
+      <header>
+        <div>
+          <h1><a href="{{ url_for('invitation.invitation', invitation_id=invitation.id) }}">{{ invitation.id }}</a></h1>
+
+          {% for accepted in get_accepted_invitations(invitation.id) %}
+            {% if loop.first %}
+            Accepted:
+            {% endif %}
+            <a href="{{ accepted.profile_url }}" target="_blank">
+              <img src="{{ accepted.photo_url }}" alt="{{ accepted.name }}"/>
+            </a>
+          {% else %}
+            No one accepted this invitation yet.
+          {% endfor%}
+          <div class="about">Created at {{ invitation.created_at }}</div>
+        </div>
+      </header>
+    </article>
+    {% if not loop.last %}
+      <hr>
+    {% endif %}
+  {% endfor %}
+  {% endwith %}
+{% endblock %}

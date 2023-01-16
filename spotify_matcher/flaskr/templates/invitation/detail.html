@@ -15,9 +15,11 @@
             </div>
         </header>
     </article>
+    {% if g.user.id not in accepted_invitations | map(attribute="id") %}
     <form method="post" action="{{ url_for('invitation.accept', invitation_id=invitation.id) }}">
         <input type="submit" value="Accept">
     </form>
+    {% endif%}
     {% endif %}
     {% for accepted in accepted_invitations %}
         {% if loop.first %}
@@ -37,6 +39,9 @@
                     Matches
                 </h1>
             </div>
+            <form method="post" action="{{ url_for('invitation.save_matches', invitation_id=invitation.id) }}">
+                <input type="submit" value="Save to playlist">
+            </form>
         </header>
         <div>
             {% for song in matches %}

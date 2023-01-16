@@ -3,6 +3,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <nav>
   <h1>Spotify matcher</h1>
+  {% if g.user %}
+  <ul>
+    <li><a href="{{ url_for('invitation.invitations') }}">Invitations</a>
+    <li><a href="{{ url_for('invitation.accepted_invitations') }}">Accepted invitations</a>
+  </ul>
+  {% endif %}
   <ul>
     {% if g.user %}
       <li><span>{{ g.user['username'] }}</span>
