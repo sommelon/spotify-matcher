@@ -1,5 +1,7 @@
 import re
+import time
 
+from dotenv import get_key
 from psycopg2.extensions import cursor as _cursor
 from psycopg2.extras import execute_values
 from spotipy import Spotify
@@ -72,6 +74,14 @@ def _filter_songs(songs: list):
 
 @celery.task
 def retrieve_songs(access_token, user):
+    print("Retrieving songs for user", user["name"])
+    if user["last_song_retrieval_time"] is not None:
+        if int(time.time()) - user["last_song_retrieval_time"] < int(
+            get_key(".env", "SONG_CACHE_TIME")
+        ):
+            print("Getting songs from cache.")
+            return
+
     sp = Spotify(auth=access_token)
     liked_songs = sp.current_user_saved_tracks()
     liked_songs = [
@@ -130,6 +140,12 @@ def retrieve_songs(access_token, user):
             [(user["id"], id, "playlist") for id in all_song_ids],
         )
 
+    db.commit()
+    with db.cursor() as cursor:
+        cursor.execute(
+            "UPDATE users SET last_song_retrieval_time = %s WHERE id = %s",
+            (int(time.time()), user["id"]),
+        )
     db.commit()
     return songs
 

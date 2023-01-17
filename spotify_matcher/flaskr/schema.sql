@@ -10,7 +10,8 @@ CREATE TABLE users (
   spotify_id TEXT NOT NULL,
   name TEXT NOT NULL,
   profile_url TEXT NOT NULL,
-  photo_url TEXT
+  photo_url TEXT,
+  last_song_retrieval_time INT
 );
 
 CREATE TABLE invitations (
