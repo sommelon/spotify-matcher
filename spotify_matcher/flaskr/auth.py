@@ -1,7 +1,16 @@
 import functools
 
 import spotipy
-from flask import Blueprint, g, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from spotipy.cache_handler import FlaskSessionCacheHandler
 from spotipy.oauth2 import SpotifyOAuth
 
@@ -50,6 +59,7 @@ def callback():
     session["user_id"] = user["id"]
     session["spotify_access_token"] = access_token
     if accepted_invitation:
+        flash("Accept the invitation again, please.")
         return redirect(
             url_for("invitation.invitation", invitation_id=accepted_invitation)
         )
