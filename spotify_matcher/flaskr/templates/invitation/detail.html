@@ -44,6 +44,7 @@
             </form>
         </header>
         <div>
+            {{ matches | length }} matches <br />
             {% for song in matches %}
             <a href="{{ song.url }}" target="_blank">{{ song.name }}</a><br/>
             {% endfor %}

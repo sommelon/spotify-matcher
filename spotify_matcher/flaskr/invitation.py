@@ -84,6 +84,7 @@ def _get_matches(invitation, accepted_invitations):
         return []
 
     user_ids = [user["id"] for user in accepted_invitations]
+    matches = []
     with get_db().cursor() as cursor:
         cursor.execute(
             "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
@@ -129,7 +130,7 @@ def save_matches(invitation_id):
 
     from spotify_matcher.flaskr.tasks import save_matched_songs
 
-    matched_users = [g.user["name"]] + [
+    matched_users = [invitation["name"]] + [
         invitation["name"] for invitation in accepted_invitations
     ]
 
