@@ -51,12 +51,14 @@ def invitation(invitation_id):
 
     accepted_invitations = _get_accepted_invitations(invitation_id)
     matches = _get_matches(invitation, accepted_invitations)
+    retrieving_songs = session.pop("retrieving_songs", False)
 
     return render_template(
         "invitation/detail.html",
         invitation=invitation,
         accepted_invitations=accepted_invitations,
         matches=matches,
+        retrieving_songs=retrieving_songs,
     )
 
 
@@ -137,18 +139,21 @@ def save_matches(invitation_id):
     if not _try_connection(session["spotify_access_token"]):
         return redirect(url_for("auth.login"))
 
-    save_matched_songs.delay(
-        session["spotify_access_token"], g.user, matches, matched_users
+    sp = Spotify(auth=session["spotify_access_token"])
+    playlist = sp.user_playlist_create(
+        g.user["spotify_id"],
+        "Song matches: " + " + ".join(matched_users),
+        public=False,
+        description="Songs matched with " + ", ".join(matched_users),
     )
+    save_matched_songs.delay(session["spotify_access_token"], g.user, playlist, matches)
 
-    flash(
-        f"Songs will be added to a playlist named 'Song matches: {','.join(matched_users)}'"
-    )
     return render_template(
         "invitation/detail.html",
         invitation=invitation,
         accepted_invitations=accepted_invitations,
         matches=matches,
+        new_playlist=playlist,
     )
 
 
@@ -213,7 +218,7 @@ def accept(invitation_id):
             (invitation_id, g.user["id"]),
         )
         db.commit()
-
+    session["retrieving_songs"] = True
     return redirect(url_for("invitation.invitation", invitation_id=invitation_id))
 
 

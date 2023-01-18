@@ -5,12 +5,25 @@
 {% endblock %}
 
 {% block content %}
+    {% if new_playlist %}
+    <div class="flash">
+        Songs are being added to the '<a href="{{new_playlist.external_urls.spotify}}\">{{ new_playlist.name }}'</a> playlist <img src="https://cdn.frankerfacez.com/emoticon/612960/1">.
+    </div>
+    {% endif %}
+    {% if retrieving_songs %}
+    <div class="flash">
+        Retrieving songs. If no matches are found, try to wait a couple seconds <img src="https://cdn.frankerfacez.com/emoticon/349048/1">... and then refresh the page <img src="https://cdn.frankerfacez.com/emoticon/61496/1">.
+    </div>
+    {% endif %}
     {% if invitation.author_id != g.user.id %}
     <article class="invitation">
         <header>
             <div>
                 <h1>
-                    <a href="{{ invitation.profile_url }}" target="_blank">{{ invitation.name }}</a> invited you match their songs with yours. Click accept to accept <img src="https://cdn.frankerfacez.com/emoticon/265650/1">.
+                    <a href="{{ invitation.profile_url }}" target="_blank">{{ invitation.name }}</a> invited you match their songs with yours <img src="https://cdn.frankerfacez.com/emoticon/61496/1">.
+                    {% if g.user.id not in accepted_invitations | map(attribute="id") %}
+                     Click accept to accept <img src="https://cdn.frankerfacez.com/emoticon/265650/1">.
+                    {% endif %}
                 </h1>
             </div>
         </header>
