@@ -54,11 +54,11 @@
             </div>
             {% if matches %}
             <form method="post" action="{{ url_for('invitation.save_matches', invitation_id=invitation.id) }}">
-                <input type="hidden" name="owned_playlist" value="{{ 'on' if 'owned_playlist' in checked_sources }}">
-                <input type="hidden" name="not_owned_playlist" value="{{ 'on' if 'not_owned_playlist' in checked_sources }}">
-                <input type="hidden" name="liked_songs" value="{{ 'on' if 'liked_songs' in checked_sources }}">
-                <input type="hidden" name="top_tracks" value="{{ 'on' if 'top_tracks' in checked_sources }}">
-                <input type="hidden" name="recently_played" value="{{ 'on' if 'recently_played' in checked_sources }}">
+                <input type="hidden" name="owned_playlist" value="{{ 'on' if 'owned_playlist' in selected_sources }}">
+                <input type="hidden" name="not_owned_playlist" value="{{ 'on' if 'not_owned_playlist' in selected_sources }}">
+                <input type="hidden" name="liked_songs" value="{{ 'on' if 'liked_songs' in selected_sources }}">
+                <input type="hidden" name="top_tracks" value="{{ 'on' if 'top_tracks' in selected_sources }}">
+                <input type="hidden" name="recently_played" value="{{ 'on' if 'recently_played' in selected_sources }}">
                 <input type="submit" value="Save to playlist">
             </form>
             {% endif %}
@@ -66,11 +66,11 @@
         {% if accepted_invitations %}
         <div>
             <form class="checkboxes" method="post" action="{{ url_for('invitation.invitation', invitation_id=invitation.id) }}">
-                <input type="checkbox" name="owned_playlist" id="owned_playlist" {{ 'checked' if 'owned_playlist' in checked_sources }}> <label for="owned_playlist">Owned playlists</label>
-                <input type="checkbox" name="not_owned_playlist" id="not_owned_playlist" {{ 'checked' if 'not_owned_playlist' in checked_sources }}> <label for="not_owned_playlist">Not owned playlists</label>
-                <input type="checkbox" name="liked_songs" id="liked_songs" {{ 'checked' if 'liked_songs' in checked_sources }}> <label for="liked_songs">Liked songs</label>
-                <input type="checkbox" name="top_tracks" id="top_tracks" {{ 'checked' if 'top_tracks' in checked_sources }}> <label for="top_tracks">Top tracks</label>
-                <input type="checkbox" name="recently_played" id="recently_played" {{ 'checked' if 'recently_played' in checked_sources }}> <label for="recently_played">Recently played</label>
+                <input type="checkbox" name="owned_playlist" id="owned_playlist" {{ 'checked' if 'owned_playlist' in selected_sources }}> <label for="owned_playlist">Owned playlists</label>
+                <input type="checkbox" name="not_owned_playlist" id="not_owned_playlist" {{ 'checked' if 'not_owned_playlist' in selected_sources }}> <label for="not_owned_playlist">Not owned playlists</label>
+                <input type="checkbox" name="liked_songs" id="liked_songs" {{ 'checked' if 'liked_songs' in selected_sources }}> <label for="liked_songs">Liked songs</label>
+                <input type="checkbox" name="top_tracks" id="top_tracks" {{ 'checked' if 'top_tracks' in selected_sources }}> <label for="top_tracks">Top tracks</label>
+                <input type="checkbox" name="recently_played" id="recently_played" {{ 'checked' if 'recently_played' in selected_sources }}> <label for="recently_played">Recently played</label>
                 <input type="submit" value="Filter">
             </form>
         </div>

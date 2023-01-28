@@ -62,11 +62,11 @@ def invitation(invitation_id):
         invitation = cursor.fetchone()
 
     accepted_invitations = _get_accepted_invitations(invitation_id)
-    checked_sources = (
+    selected_sources = (
         request.form.keys() or ALLOWED_SOURCES
     )  # side effect: when user uncheckes everything, it checks everything again
 
-    sources = tuple(source for source in checked_sources if source in ALLOWED_SOURCES)
+    sources = tuple(source for source in selected_sources if source in ALLOWED_SOURCES)
 
     matches = _get_matches(invitation, accepted_invitations, sources)
     retrieving_songs = session.pop("retrieving_songs", False)
@@ -77,7 +77,7 @@ def invitation(invitation_id):
         accepted_invitations=accepted_invitations,
         matches=matches,
         retrieving_songs=retrieving_songs,
-        checked_sources=checked_sources,
+        selected_sources=selected_sources,
     )
 
 
@@ -164,11 +164,11 @@ def save_matches(invitation_id):
         invitation = cursor.fetchone()
 
     accepted_invitations = _get_accepted_invitations(invitation_id)
-    checked_sources = (
+    selected_sources = (
         request.form.keys() or ALLOWED_SOURCES
     )  # side effect: when user uncheckes everything, it checks everything again
 
-    sources = tuple(source for source in checked_sources if source in ALLOWED_SOURCES)
+    sources = tuple(source for source in selected_sources if source in ALLOWED_SOURCES)
     matches = _get_matches(invitation, accepted_invitations, sources)
 
     from spotify_matcher.flaskr.tasks import save_matched_songs
@@ -195,6 +195,7 @@ def save_matches(invitation_id):
         accepted_invitations=accepted_invitations,
         matches=matches,
         new_playlist=playlist,
+        selected_sources=selected_sources,
     )
 
 
