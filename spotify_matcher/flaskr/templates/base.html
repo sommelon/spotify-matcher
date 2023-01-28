@@ -5,6 +5,8 @@
   <h1>Spotify matcher</h1>
   {% if g.user %}
   <ul>
+    <li style="padding: 0.5em 1em 0 0">Fetched songs: {{ get_fetched_songs_count() }}</li>
+    <li style="padding: 0.5em 1em 0 0"><form action="{{ url_for('invitation.fetch')}}?next={{ url_for(request.endpoint, **request.view_args) }}" method="POST"><input type="submit" value="Fetch songs from Spotify"/></form></li>
     <li><a href="{{ url_for('invitation.invitations') }}">Your invitations</a>
     <li><a href="{{ url_for('invitation.accepted_invitations') }}">Accepted invitations</a>
   </ul>

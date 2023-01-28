@@ -8,12 +8,8 @@
 {% endblock %}
 
 {% block content %}
-  {% with messages = get_flashed_messages(category_filter=["error"]) %}
   {% for invitation in invitations %}
-  {% if messages[0] == invitation.id %}
-  {% endif %}
-
-    <article class="invitation {% if messages[0] == invitation.id %}new-invitation{% endif %}">
+    <article class="invitation {% if new_invitation_id == invitation.id %}new-invitation{% endif %}">
       <header>
         <div>
           <h1><a href="{{ url_for('invitation.invitation', invitation_id=invitation.id) }}">{{ invitation.id }}</a></h1>
@@ -37,5 +33,4 @@
       <hr>
     {% endif %}
   {% endfor %}
-  {% endwith %}
 {% endblock %}

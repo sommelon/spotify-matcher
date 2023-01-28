@@ -1,5 +1,7 @@
+import time
 from uuid import uuid4
 
+from dotenv import get_key
 from flask import (
     Blueprint,
     abort,
@@ -7,6 +9,7 @@ from flask import (
     g,
     redirect,
     render_template,
+    request,
     session,
     url_for,
 )
@@ -33,6 +36,7 @@ def invitations():
     return render_template(
         "invitation/list.html",
         invitations=invitations,
+        new_invitation_id=session.pop("new_invitation_id", None),
         get_accepted_invitations=_get_accepted_invitations,
     )
 
@@ -176,9 +180,11 @@ def create():
     if not _try_connection(session["spotify_access_token"]):
         return redirect(url_for("auth.login"))
 
-    retrieve_songs.delay(session["spotify_access_token"], g.user)
+    if not _get_fetched_songs_count():
+        retrieve_songs.delay(session["spotify_access_token"], g.user)
 
-    flash(invitation, "new_invitation")
+    session["new_invitation_id"] = invitation["id"]
+    flash("Invitation created successfuly. Copy the link and send it to someone.")
     return redirect(url_for("invitation.invitations"))
 
 
@@ -211,7 +217,8 @@ def accept(invitation_id):
 
         if not _try_connection(session["spotify_access_token"]):
             return redirect(url_for("auth.login"))
-        retrieve_songs.delay(session["spotify_access_token"], g.user)
+        if not _get_fetched_songs_count():
+            retrieve_songs.delay(session["spotify_access_token"], g.user)
 
         cursor.execute(
             "INSERT INTO accepted_invitations (invitation_id, user_id) VALUES (%s, %s)",
@@ -220,6 +227,29 @@ def accept(invitation_id):
         db.commit()
     session["retrieving_songs"] = True
     return redirect(url_for("invitation.invitation", invitation_id=invitation_id))
+
+
+@bp.route("/fetch", methods=("POST",))
+def fetch():
+    from spotify_matcher.flaskr.tasks import retrieve_songs
+
+    if not _try_connection(session["spotify_access_token"]):
+        return redirect(url_for("auth.login"))
+    seconds_since_last_fetch = int(time.time()) - g.user["last_song_retrieval_time"]
+    song_cache_time = int(get_key(".env", "SONG_CACHE_TIME"))
+
+    print("Retrieving songs for user", g.user["name"])
+    if g.user["last_song_retrieval_time"] is not None:
+        if seconds_since_last_fetch < song_cache_time:
+            print("Getting songs from cache.")
+            flash(
+                f"Sorry, we don't want to annoy Spotify do we? You can fetch songs again after {song_cache_time - seconds_since_last_fetch} seconds."
+            )
+        else:
+            retrieve_songs.delay(session["spotify_access_token"], g.user)
+
+    next = request.args.get("next", url_for("invitation.invitations"))
+    return redirect(next)
 
 
 def _get_accepted_invitation(invitation_id, user_id):
@@ -259,3 +289,13 @@ def _try_connection(access_token):
         else:
             flash("Unexpected error: " + e.msg)
         return False
+
+
+def _get_fetched_songs_count():
+    with get_db().cursor() as cursor:
+        cursor.execute(
+            "SELECT count(DISTINCT song_id) FROM user_songs" " WHERE user_id = %s",
+            (g.user["id"],),
+        )
+        count = cursor.fetchall()
+    return count[0]["count"] if count else 0

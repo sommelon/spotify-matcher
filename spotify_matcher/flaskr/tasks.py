@@ -1,7 +1,6 @@
 import re
 import time
 
-from dotenv import get_key
 from psycopg2.extras import execute_values
 from spotipy import Spotify
 
@@ -89,14 +88,6 @@ def _get_songs_from_playlists(sp, playlists):
 
 @celery.task
 def retrieve_songs(access_token, user):
-    print("Retrieving songs for user", user["name"])
-    if user["last_song_retrieval_time"] is not None:
-        if int(time.time()) - user["last_song_retrieval_time"] < int(
-            get_key(".env", "SONG_CACHE_TIME")
-        ):
-            print("Getting songs from cache.")
-            return
-
     sp = Spotify(auth=access_token)
     liked_songs = sp.current_user_saved_tracks()
     liked_songs = [

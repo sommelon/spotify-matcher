@@ -4,6 +4,8 @@ from celery import Celery
 from dotenv import get_key
 from flask import Flask
 
+from spotify_matcher.flaskr.invitation import _get_fetched_songs_count
+
 
 def make_celery(app: Flask):
     celery = Celery(app.import_name)
@@ -63,3 +65,8 @@ def create_app(test_config=None):
 
 app = create_app()
 celery = make_celery(app)
+
+
+@app.context_processor
+def inject_fetched_songs_count():
+    return dict(get_fetched_songs_count=_get_fetched_songs_count)
