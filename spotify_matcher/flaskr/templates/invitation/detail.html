@@ -52,9 +52,11 @@
                     Matches
                 </h1>
             </div>
+            {% if matches %}
             <form method="post" action="{{ url_for('invitation.save_matches', invitation_id=invitation.id) }}">
                 <input type="submit" value="Save to playlist">
             </form>
+            {% endif %}
         </header>
         <div>
             {{ matches | length }} matches <br />

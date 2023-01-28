@@ -97,7 +97,7 @@ def _get_matches(invitation, accepted_invitations):
 
         for id_ in user_ids:
             if not song_ids:
-                continue
+                break
 
             cursor.execute(
                 "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
@@ -250,7 +250,10 @@ def _try_connection(access_token):
         sp.me()
         return True
     except SpotifyException as e:
+        accepted_invitation = session.get("accepted_invitation")
         session.clear()
+        if accepted_invitation:
+            session["accepted_invitation"] = accepted_invitation
         if "expired" in e.msg:
             flash("Your Spotify token has expired, you need to log in again.")
         else:
