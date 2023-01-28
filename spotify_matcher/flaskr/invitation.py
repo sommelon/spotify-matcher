@@ -18,6 +18,14 @@ from spotipy import Spotify, SpotifyException
 from spotify_matcher.flaskr.auth import login_required
 from spotify_matcher.flaskr.db import get_db
 
+ALLOWED_SOURCES = [
+    "owned_playlist",
+    "not_owned_playlist",
+    "liked_songs",
+    "top_tracks",
+    "recently_played",
+]
+
 bp = Blueprint("invitation", __name__, url_prefix="/invitations")
 
 
@@ -41,7 +49,7 @@ def invitations():
     )
 
 
-@bp.route("/<invitation_id>")
+@bp.route("/<invitation_id>", methods=["GET", "POST"])
 def invitation(invitation_id):
     with get_db().cursor() as cursor:
         cursor.execute(
@@ -54,7 +62,13 @@ def invitation(invitation_id):
         invitation = cursor.fetchone()
 
     accepted_invitations = _get_accepted_invitations(invitation_id)
-    matches = _get_matches(invitation, accepted_invitations)
+    checked_sources = (
+        request.form.keys() or ALLOWED_SOURCES
+    )  # side effect: when user uncheckes everything, it checks everything again
+
+    sources = tuple(source for source in checked_sources if source in ALLOWED_SOURCES)
+
+    matches = _get_matches(invitation, accepted_invitations, sources)
     retrieving_songs = session.pop("retrieving_songs", False)
 
     return render_template(
@@ -63,6 +77,7 @@ def invitation(invitation_id):
         accepted_invitations=accepted_invitations,
         matches=matches,
         retrieving_songs=retrieving_songs,
+        checked_sources=checked_sources,
     )
 
 
@@ -85,29 +100,46 @@ def accepted_invitations():
     )
 
 
-def _get_matches(invitation, accepted_invitations):
+def _get_matches(invitation, accepted_invitations, sources):
     if not accepted_invitations:
         return []
 
     user_ids = [user["id"] for user in accepted_invitations]
     matches = []
     with get_db().cursor() as cursor:
-        cursor.execute(
-            "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
-            " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s",
-            (invitation["author_id"],),
-        )
+        if sources:
+            cursor.execute(
+                "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
+                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND us.source IN %s",
+                (invitation["author_id"], sources),
+            )
+        else:
+            cursor.execute(
+                "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
+                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND us.source IS NULL",
+                (invitation["author_id"],),
+            )
         song_ids = tuple(song["id"] for song in cursor.fetchall())
 
         for id_ in user_ids:
             if not song_ids:
                 break
 
-            cursor.execute(
-                "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
-                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s",
-                (id_, song_ids),
-            )
+            if sources:
+                cursor.execute(
+                    "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
+                    " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s AND us.source IN %s",
+                    (id_, song_ids, sources),
+                )
+            else:
+                cursor.execute(
+                    "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
+                    " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s AND us.source IS NULL",
+                    (
+                        id_,
+                        song_ids,
+                    ),
+                )
             song_ids = tuple(song["id"] for song in cursor.fetchall())
 
         if song_ids:
@@ -119,7 +151,7 @@ def _get_matches(invitation, accepted_invitations):
     return matches
 
 
-@bp.route("/<invitation_id>", methods=("POST",))
+@bp.route("/<invitation_id>/save", methods=("POST",))
 def save_matches(invitation_id):
     with get_db().cursor() as cursor:
         cursor.execute(
@@ -132,7 +164,12 @@ def save_matches(invitation_id):
         invitation = cursor.fetchone()
 
     accepted_invitations = _get_accepted_invitations(invitation_id)
-    matches = _get_matches(invitation, accepted_invitations)
+    checked_sources = (
+        request.form.keys() or ALLOWED_SOURCES
+    )  # side effect: when user uncheckes everything, it checks everything again
+
+    sources = tuple(source for source in checked_sources if source in ALLOWED_SOURCES)
+    matches = _get_matches(invitation, accepted_invitations, sources)
 
     from spotify_matcher.flaskr.tasks import save_matched_songs
 
