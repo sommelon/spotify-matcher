@@ -28,7 +28,8 @@ def create_app(test_config=None):
         DATABASE=os.path.join(app.instance_path, "flaskr.sqlite"),
         CELERY_CONFIG={
             "broker_url": "redis://localhost:6379/0",
-            "result_backend": "redis://localhost:6379/0",
+            "result_backend": "redis://",
+            "task_track_started": True,
         },
         SERVER_NAME=get_key(".env", "SERVER_NAME"),
     )

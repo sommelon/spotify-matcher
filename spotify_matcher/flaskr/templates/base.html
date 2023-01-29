@@ -5,8 +5,8 @@
   <h1>Spotify matcher</h1>
   {% if g.user %}
   <ul>
-    <li style="padding: 0.5em 1em 0 0">Fetched songs: {{ get_fetched_songs_count() }}</li>
-    <li style="padding: 0.5em 1em 0 0"><form action="{{ url_for('invitation.fetch')}}?next={{ url_for(request.endpoint, **request.view_args) }}" method="POST"><input type="submit" value="Fetch songs from Spotify"/></form></li>
+    <li style="padding: 0.5em 1em 0 0">Fetched songs: <span id="fetched_songs_count" style="display: inline">{{ get_fetched_songs_count() }}</span></li>
+    <li style="margin: 0.5em 1em 0 0"><form id="fetch-form" action="{{ url_for('invitation.fetch') }}?next={{ url_for(request.endpoint, **request.view_args) }}" method="POST"><input type="submit" value="Fetch songs from Spotify"/></form></li>
     <li><a href="{{ url_for('invitation.invitations') }}">Your invitations</a>
     <li><a href="{{ url_for('invitation.accepted_invitations') }}">Accepted invitations</a>
   </ul>
@@ -29,3 +29,29 @@
   {% endfor %}
   {% block content %}{% endblock %}
 </section>
+{% block footer %}
+<script type="text/javascript">
+  function update_fetch_status_ui(status) {
+    fetch_form = document.getElementById("fetch-form")
+    if(status === "STARTED") {
+      fetch_form.innerHTML = `<div style="display: inline; top: -0.3em; position: relative">Fetching songs</div> <div style="display: inline"><img id="spinner" width="20em" height="20em" src="{{ url_for('static', filename='spinner.gif') }}"></div>`
+    } else {
+      spinner = document.getElementById("spinner")
+      if (spinner) {
+        fetch("{{ url_for('invitation.fetched_songs_count') }}")
+          .then(response => response.json()).then(data => {
+            fetched_songs_count = document.getElementById("fetched_songs_count")
+            fetched_songs_count.innerHTML = data.count
+          })
+      }
+      fetch_form.innerHTML = `<input type="submit" value="Fetch songs from Spotify"/>`
+    }
+  }
+  function get_fetch_status() {
+    fetch("{{ url_for('invitation.fetch_status') }}")
+      .then(response => response.json()).then(data => update_fetch_status_ui(data.status))
+  }
+  get_fetch_status()
+  setInterval(get_fetch_status, 500)
+</script>
+{% endblock %}

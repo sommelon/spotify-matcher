@@ -169,7 +169,7 @@ def retrieve_songs(access_token, user):
             (int(time.time()), user["id"]),
         )
     db.commit()
-    return added_new_songs
+    return len(added_new_songs)
 
 
 @celery.task
@@ -182,3 +182,4 @@ def save_matched_songs(access_token, user, playlist, songs):
     ]
     for chunk in songs_in_chunks:
         sp.playlist_add_items(playlist["id"], [song["url"] for song in chunk])
+    return playlist["id"]

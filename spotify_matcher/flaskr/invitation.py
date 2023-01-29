@@ -7,6 +7,7 @@ from flask import (
     abort,
     flash,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -219,7 +220,10 @@ def create():
         return redirect(url_for("auth.login"))
 
     if not _get_fetched_songs_count():
-        retrieve_songs.delay(session["spotify_access_token"], g.user)
+        retrieve_songs.apply_async(
+            (session["spotify_access_token"], g.user),
+            task_id=f"{g.user['spotify_id']}-retrieve",
+        )
 
     session["new_invitation_id"] = invitation["id"]
     flash("Invitation created successfuly. Copy the link and send it to someone.")
@@ -256,7 +260,10 @@ def accept(invitation_id):
         if not _try_connection(session["spotify_access_token"]):
             return redirect(url_for("auth.login"))
         if not _get_fetched_songs_count():
-            retrieve_songs.delay(session["spotify_access_token"], g.user)
+            retrieve_songs.apply_async(
+                (session["spotify_access_token"], g.user),
+                task_id=f"{g.user['spotify_id']}-retrieve",
+            )
 
         cursor.execute(
             "INSERT INTO accepted_invitations (invitation_id, user_id) VALUES (%s, %s)",
@@ -284,10 +291,35 @@ def fetch():
                 f"Sorry, we don't want to annoy Spotify do we? You can fetch songs again after {song_cache_time - seconds_since_last_fetch} seconds."
             )
         else:
-            retrieve_songs.delay(session["spotify_access_token"], g.user)
+            task_id = f"{g.user['spotify_id']}-retrieve"
+            retrieve_songs.apply_async(
+                (session["spotify_access_token"], g.user),
+                task_id=task_id,
+            )
 
     next = request.args.get("next", url_for("invitation.invitations"))
     return redirect(next)
+
+
+@bp.route("fetch/status")
+def fetch_status():
+    if not g.user:
+        return {}
+
+    from spotify_matcher.flaskr import celery
+
+    task_id = f"{g.user['spotify_id']}-retrieve"
+    res = celery.AsyncResult(task_id)
+    if res.status != "STARTED":
+        res.forget()
+    return jsonify(status=res.status)
+
+
+@bp.route("fetched-songs-count")
+def fetched_songs_count():
+    if not g.user:
+        return {}
+    return jsonify(count=_get_fetched_songs_count())
 
 
 def _get_accepted_invitation(invitation_id, user_id):
@@ -332,7 +364,7 @@ def _try_connection(access_token):
 def _get_fetched_songs_count():
     with get_db().cursor() as cursor:
         cursor.execute(
-            "SELECT count(DISTINCT song_id) FROM user_songs" " WHERE user_id = %s",
+            "SELECT count(DISTINCT song_id) FROM user_songs WHERE user_id = %s",
             (g.user["id"],),
         )
         count = cursor.fetchall()
