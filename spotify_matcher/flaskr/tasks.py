@@ -81,6 +81,7 @@ def _get_songs_from_playlists(sp, playlists):
         songs = [
             normalize_song(song["track"])
             for song in collect_all_items(sp, playlist_items)
+            if song["track"]["id"]
         ]
         all_songs.extend(songs)
     return all_songs
@@ -91,7 +92,9 @@ def retrieve_songs(access_token, user):
     sp = Spotify(auth=access_token)
     liked_songs = sp.current_user_saved_tracks()
     liked_songs = [
-        normalize_song(song["track"]) for song in collect_all_items(sp, liked_songs)
+        normalize_song(song["track"])
+        for song in collect_all_items(sp, liked_songs)
+        if song["track"]["id"]
     ]
 
     playlists = sp.current_user_playlists()
@@ -113,11 +116,15 @@ def retrieve_songs(access_token, user):
     not_owned_songs = _get_songs_from_playlists(sp, not_owned_playlists)
 
     top_tracks = sp.current_user_top_tracks()
-    top_tracks = [normalize_song(song) for song in collect_all_items(sp, top_tracks)]
+    top_tracks = [
+        normalize_song(song) for song in collect_all_items(sp, top_tracks) if song["id"]
+    ]
 
     recently_played = sp.current_user_recently_played()
     recently_played = [
-        normalize_song(song["track"]) for song in collect_all_items(sp, recently_played)
+        normalize_song(song["track"])
+        for song in collect_all_items(sp, recently_played)
+        if song["track"]["id"]
     ]
 
     all_songs = (
