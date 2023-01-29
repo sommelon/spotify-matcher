@@ -108,7 +108,7 @@ def _get_matches(invitation, accepted_invitations, sources):
     user_ids = [user["id"] for user in accepted_invitations]
     matches = []
     with get_db().cursor() as cursor:
-        if sources:
+        if sources and invitation["author_id"] == g.user["id"]:
             cursor.execute(
                 "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
                 " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND us.source IN %s",
@@ -117,27 +117,27 @@ def _get_matches(invitation, accepted_invitations, sources):
         else:
             cursor.execute(
                 "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
-                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND us.source IS NULL",
+                " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s",
                 (invitation["author_id"],),
             )
         song_ids = tuple(song["id"] for song in cursor.fetchall())
 
-        for id_ in user_ids:
+        for user_id in user_ids:
             if not song_ids:
                 break
 
-            if sources:
+            if sources and user_id == g.user["id"]:
                 cursor.execute(
                     "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
                     " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s AND us.source IN %s",
-                    (id_, song_ids, sources),
+                    (user_id, song_ids, sources),
                 )
             else:
                 cursor.execute(
                     "SELECT DISTINCT s.id, s.name, s.url FROM songs s"
-                    " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s AND us.source IS NULL",
+                    " JOIN user_songs us ON s.id = us.song_id AND us.user_id = %s AND s.id IN %s",
                     (
-                        id_,
+                        user_id,
                         song_ids,
                     ),
                 )
