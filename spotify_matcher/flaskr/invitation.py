@@ -69,7 +69,7 @@ def invitation(invitation_id):
 
     sources = tuple(source for source in selected_sources if source in ALLOWED_SOURCES)
 
-    matches = _get_matches(invitation, accepted_invitations, sources)
+    matches = _get_matches(invitation, accepted_invitations, sources) if g.user else []
     retrieving_songs = session.pop("retrieving_songs", False)
 
     return render_template(
@@ -226,7 +226,7 @@ def create():
         )
 
     session["new_invitation_id"] = invitation["id"]
-    flash("Invitation created successfuly. Copy the link and send it to someone.")
+    flash("Invitation created successfully. Copy the link and send it to someone.")
     return redirect(url_for("invitation.invitations"))
 
 

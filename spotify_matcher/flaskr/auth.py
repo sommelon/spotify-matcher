@@ -40,7 +40,7 @@ def callback():
     if user is None:
         with db.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO users (spotify_id, name, profile_url, photo_url) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO users (spotify_id, name, profile_url, photo_url, last_song_retrieval_time) VALUES (%s, %s, %s, %s, 0)",
                 (
                     spotify_user["id"],
                     spotify_user["display_name"],
