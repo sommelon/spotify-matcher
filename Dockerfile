@@ -3,6 +3,7 @@ FROM python:3.10-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV FLASK_APP=spotify_matcher.flaskr
 
 # Set work directory
 WORKDIR /app
@@ -26,4 +27,4 @@ RUN poetry install --no-root --without dev
 EXPOSE 5000
 
 # Start the application
-CMD ["poetry", "run", "gunicorn", "--bind", "0.0.0.0:5000"]
+CMD ["poetry", "run", "gunicorn", "--bind", "0.0.0.0:5000", "$FLASK_APP"]

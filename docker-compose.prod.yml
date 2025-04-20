@@ -29,7 +29,7 @@ services:
     container_name: app
     restart: unless-stopped
     env_file: .env
-    command: poetry run gunicorn -b 0.0.0.0:5000
+    command: poetry run gunicorn -b 0.0.0.0:5000 $FLASK_APP
     ports:
       - "5000:5000"
     depends_on:
