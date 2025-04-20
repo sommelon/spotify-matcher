@@ -22,7 +22,7 @@ services:
     networks:
       - backend
 
-  flask:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
