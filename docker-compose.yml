@@ -29,7 +29,7 @@ services:
     container_name: app
     restart: unless-stopped
     env_file: .env
-    command: poetry run gunicorn -b 0.0.0.0:5000 $FLASK_APP
+    command: poetry run gunicorn -b 0.0.0.0:5000 spotify_matcher.flaskr:app
     volumes:
       - .:/app  # Mount current directory for live reloads
     ports:
