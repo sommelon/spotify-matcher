@@ -46,6 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: celery-worker
     restart: unless-stopped
+    env_file: .env
     command: poetry run python -m celery -A spotify_matcher.flaskr.tasks worker -l info -P solo
     volumes:
       - .:/app  # Mount current directory for live reloads
