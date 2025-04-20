@@ -12,7 +12,7 @@ RUN pip install poetry
 COPY pyproject.toml poetry.lock /app/
 
 # Install dependencies using Poetry (without dev dependencies for prod)
-RUN poetry install --no-dev --no-root
+RUN poetry install --only main --no-root
 
 # Copy the rest of the application files
 COPY . /app/
