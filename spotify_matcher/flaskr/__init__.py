@@ -28,7 +28,7 @@ def create_app(test_config=None):
         DATABASE=os.path.join(app.instance_path, "flaskr.sqlite"),
         CELERY_CONFIG={
             "broker_url": get_key(".env", "CELERY_BROKER_URL"),
-            "result_backend": "redis://",
+            "result_backend": get_key(".env", "CELERY_BROKER_URL"),
             "task_track_started": True,
         },
     )
