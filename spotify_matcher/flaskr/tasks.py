@@ -1,5 +1,6 @@
 import re
 import time
+from typing import Generator
 
 from psycopg2.extras import execute_values
 from spotipy import Spotify
@@ -35,7 +36,7 @@ def normalize_song(song):
     }
 
 
-def collect_all_items(sp, results):
+def collect_all_items(sp, results) -> Generator[dict, None, None]:
     for item in results["items"]:
         yield item
 
@@ -81,7 +82,7 @@ def _get_songs_from_playlists(sp, playlists):
         songs = [
             normalize_song(song["track"])
             for song in collect_all_items(sp, playlist_items)
-            if song["track"]["id"]
+            if song and song.get("track")
         ]
         all_songs.extend(songs)
     return all_songs
@@ -94,11 +95,11 @@ def retrieve_songs(access_token, user):
     liked_songs = [
         normalize_song(song["track"])
         for song in collect_all_items(sp, liked_songs)
-        if song["track"]["id"]
+        if song and song.get("track")
     ]
 
     playlists = sp.current_user_playlists()
-    playlists = [playlist for playlist in collect_all_items(sp, playlists)]
+    playlists = [playlist for playlist in collect_all_items(sp, playlists) if playlist]
     owned_playlists = [
         playlist
         for playlist in playlists
@@ -117,14 +118,16 @@ def retrieve_songs(access_token, user):
 
     top_tracks = sp.current_user_top_tracks()
     top_tracks = [
-        normalize_song(song) for song in collect_all_items(sp, top_tracks) if song["id"]
+        normalize_song(song)
+        for song in collect_all_items(sp, top_tracks)
+        if song and song["id"]
     ]
 
     recently_played = sp.current_user_recently_played()
     recently_played = [
         normalize_song(song["track"])
         for song in collect_all_items(sp, recently_played)
-        if song["track"]["id"]
+        if song and song.get("track")
     ]
 
     all_songs = (

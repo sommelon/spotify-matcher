@@ -30,9 +30,9 @@ services:
     container_name: app
     restart: unless-stopped
     env_file: .env
-    command: poetry run gunicorn -b 0.0.0.0:5000 spotify_matcher.flaskr:app
+    command: gunicorn -b 0.0.0.0:5000 spotify_matcher.flaskr:app
     volumes:
-      - .:/app  # Mount current directory for live reloads
+      - .:/app # Mount current directory for live reloads
     ports:
       - "5000:5000"
     depends_on:
@@ -48,9 +48,9 @@ services:
     container_name: celery-worker
     restart: unless-stopped
     env_file: .env
-    command: poetry run python -m celery -A spotify_matcher.flaskr.tasks worker -l info -P solo
+    command: celery -A spotify_matcher.flaskr.tasks worker -l info -P solo
     volumes:
-      - .:/app  # Mount current directory for live reloads
+      - .:/app # Mount current directory for live reloads
     depends_on:
       - db
       - redis
@@ -73,6 +73,7 @@ services:
 
 volumes:
   postgres_data:
+
 
 networks:
   backend:

@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+ENV POETRY_VIRTUALENVS_CREATE=false
+
 COPY . /app
 
 # Install Poetry
