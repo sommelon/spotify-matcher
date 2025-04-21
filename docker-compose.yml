@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - .spotify_matcher/flaskr/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - ./spotify_matcher/flaskr/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     networks:
       - backend
 
