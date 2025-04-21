@@ -1,7 +1,6 @@
 import os
 
 from celery import Celery
-from dotenv import get_key
 from flask import Flask
 
 from spotify_matcher.flaskr.invitation import _get_fetched_songs_count
@@ -27,11 +26,9 @@ def create_app(test_config=None):
         SECRET_KEY="dev",
         DATABASE=os.path.join(app.instance_path, "flaskr.sqlite"),
         CELERY_CONFIG={
-            "broker_url": "redis://localhost:6379/0",
             "result_backend": "redis://",
             "task_track_started": True,
         },
-        SERVER_NAME=get_key(".env", "SERVER_NAME"),
     )
 
     if test_config is None:
