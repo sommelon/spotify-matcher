@@ -30,11 +30,14 @@ services:
     container_name: app
     restart: unless-stopped
     env_file: .env
-    command: gunicorn -b 0.0.0.0:5000 spotify_matcher.flaskr:app
+    command: >
+      python -m debugpy --listen 0.0.0.0:5680 --wait-for-client
+      -m gunicorn -b 0.0.0.0:5000 spotify_matcher.flaskr:app
     volumes:
       - .:/app # Mount current directory for live reloads
     ports:
       - "5000:5000"
+      - "5680:5680"
     depends_on:
       - db
       - redis
@@ -48,9 +51,13 @@ services:
     container_name: celery-worker
     restart: unless-stopped
     env_file: .env
-    command: celery -A spotify_matcher.flaskr.tasks worker -l info -P solo
+    command: >
+      python -m debugpy --listen 0.0.0.0:5678 --wait-for-client
+      -m celery -A spotify_matcher.flaskr.tasks worker -l info -P solo
     volumes:
       - .:/app # Mount current directory for live reloads
+    ports:
+      - "5678:5678"
     depends_on:
       - db
       - redis

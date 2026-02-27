@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 
 # IDE
-.vscode
+.vscode/*
+!.vscode/launch.json

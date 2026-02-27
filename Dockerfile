@@ -19,7 +19,7 @@ ENV POETRY_VIRTUALENVS_CREATE=false
 COPY . /app
 
 # Install Poetry
-RUN pip install poetry
+RUN pip install poetry debugpy
 
 
 # Install dependencies
